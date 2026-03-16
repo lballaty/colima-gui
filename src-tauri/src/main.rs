@@ -72,6 +72,46 @@ async fn version_colima(window: Window, debug: bool) -> Result<(), String> {
     stream_command_output(window, "colima version", debug).await
 }
 
+/// Fetches and parses all Colima profiles.
+/// Returns a list of profiles with their current status and configuration.
+#[command]
+async fn list_profiles() -> Result<Vec<ColimaProfile>, String> {
+    let output = tokio::process::Command::new("colima")
+        .arg("list")
+        .output()
+        .await
+        .map_err(|e| format!("Failed to execute colima list: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut profiles = Vec::new();
+
+    // Skip header line and parse each profile
+    for line in stdout.lines().skip(1) {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+
+        // colima list output: PROFILE STATUS ARCH CPUS MEMORY DISK [RUNTIME] [ADDRESS]
+        if parts.len() >= 6 {
+            let profile = ColimaProfile {
+                name: parts[0].to_string(),
+                status: parts[1].to_string(),
+                arch: parts[2].to_string(),
+                cpus: parts[3].to_string(),
+                memory: parts[4].to_string(),
+                disk: parts[5].to_string(),
+                runtime: parts.get(6).map(|s| s.to_string()),
+                address: parts.get(7).map(|s| s.to_string()),
+            };
+            profiles.push(profile);
+        }
+    }
+
+    Ok(profiles)
+}
+
 #[command]
 fn open_config() -> Result<String, String> {
     let config_path = dirs::home_dir()
@@ -151,6 +191,7 @@ fn main() {
             status_colima,
             delete_colima,
             list_colima,
+            list_profiles,
             prune_colima,
             version_colima,
             open_config
