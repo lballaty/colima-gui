@@ -4,10 +4,33 @@
 )]
 
 use regex::Regex;
+use serde::Serialize;
 use std::process::Stdio;
 use tauri::{command, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+
+/// Represents a Colima VM profile with its configuration and status.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ColimaProfile {
+    /// Profile name (e.g., "default", "app", "personal-dev")
+    name: String,
+    /// Current status ("Running" or "Stopped")
+    status: String,
+    /// Architecture (e.g., "aarch64", "x86_64")
+    arch: String,
+    /// Number of CPUs allocated
+    cpus: String,
+    /// Memory allocated (e.g., "8GiB")
+    memory: String,
+    /// Disk space allocated (e.g., "100GiB")
+    disk: String,
+    /// Container runtime (e.g., "docker", "containerd"), empty if stopped
+    runtime: Option<String>,
+    /// IP address if running, None if stopped
+    address: Option<String>,
+}
 
 #[command]
 async fn start_colima(window: Window, debug: bool) -> Result<(), String> {

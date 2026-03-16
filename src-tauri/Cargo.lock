@@ -338,6 +338,7 @@ version = "0.1.0"
 dependencies = [
  "dirs",
  "regex",
+ "serde",
  "tauri",
  "tauri-build",
  "tokio",
