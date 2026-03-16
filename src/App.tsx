@@ -3,11 +3,23 @@ import './App.css';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrent } from '@tauri-apps/api/window';
-import { Button, Checkbox, FormControlLabel, Typography, Container, Box, Paper } from '@mui/material';
+import { Button, Checkbox, FormControlLabel, Typography, Container, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+
+interface ColimaProfile {
+  name: string;
+  status: string;
+  arch: string;
+  cpus: string;
+  memory: string;
+  disk: string;
+  runtime?: string;
+  address?: string;
+}
 
 function App() {
   const [output, setOutput] = useState<string[]>([]);
   const [debug, setDebug] = useState(false);
+  const [profiles, setProfiles] = useState<ColimaProfile[]>([]);
   const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,6 +38,22 @@ function App() {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [output]);
+
+  // Fetch profiles on mount and refresh every 5 seconds
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      try {
+        const result = await invoke<ColimaProfile[]>('list_profiles');
+        setProfiles(result);
+      } catch (error) {
+        console.error('Failed to fetch profiles:', error);
+      }
+    };
+
+    fetchProfiles();
+    const interval = setInterval(fetchProfiles, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleClick = async (command: string, label?: string) => {
     try {
@@ -51,6 +79,54 @@ function App() {
       <Typography variant="h4" gutterBottom>
         Colima GUI
       </Typography>
+
+      {/* Profiles Table */}
+      <Box mb={3}>
+        <Typography variant="h6" gutterBottom>
+          Colima Profiles
+        </Typography>
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell><strong>Profile</strong></TableCell>
+                <TableCell><strong>Status</strong></TableCell>
+                <TableCell><strong>Arch</strong></TableCell>
+                <TableCell><strong>CPUs</strong></TableCell>
+                <TableCell><strong>Memory</strong></TableCell>
+                <TableCell><strong>Disk</strong></TableCell>
+                <TableCell><strong>Runtime</strong></TableCell>
+                <TableCell><strong>Address</strong></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {profiles.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center">No profiles found</TableCell>
+                </TableRow>
+              ) : (
+                profiles.map((profile) => (
+                  <TableRow key={profile.name}>
+                    <TableCell>{profile.name}</TableCell>
+                    <TableCell>
+                      <span style={{ color: profile.status === 'Running' ? 'green' : 'gray' }}>
+                        {profile.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>{profile.arch}</TableCell>
+                    <TableCell>{profile.cpus}</TableCell>
+                    <TableCell>{profile.memory}</TableCell>
+                    <TableCell>{profile.disk}</TableCell>
+                    <TableCell>{profile.runtime || '-'}</TableCell>
+                    <TableCell>{profile.address || '-'}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+
       <Box display="flex" justifyContent="space-between">
         <Box display="flex" flexDirection="column" gap={2}>
           <Button variant="contained" onClick={() => handleClick('start_colima', 'colima start')}>Start</Button>
