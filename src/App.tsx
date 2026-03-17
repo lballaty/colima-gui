@@ -3,7 +3,7 @@ import './App.css';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrent } from '@tauri-apps/api/window';
-import { Button, Checkbox, FormControlLabel, Typography, Container, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Button, Checkbox, FormControlLabel, Typography, Container, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 
 interface ColimaProfile {
   name: string;
@@ -20,6 +20,7 @@ function App() {
   const [output, setOutput] = useState<string[]>([]);
   const [debug, setDebug] = useState(false);
   const [profiles, setProfiles] = useState<ColimaProfile[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<string>('');
   const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -125,6 +126,25 @@ function App() {
             </TableBody>
           </Table>
         </TableContainer>
+      </Box>
+
+      {/* Profile Selection */}
+      <Box mb={3}>
+        <FormControl fullWidth>
+          <InputLabel id="profile-select-label">Select Profile to Manage</InputLabel>
+          <Select
+            labelId="profile-select-label"
+            value={selectedProfile}
+            label="Select Profile to Manage"
+            onChange={(e) => setSelectedProfile(e.target.value)}
+          >
+            {profiles.map((profile) => (
+              <MenuItem key={profile.name} value={profile.name}>
+                {profile.name} ({profile.status})
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
 
       <Box display="flex" justifyContent="space-between">
