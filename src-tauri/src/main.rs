@@ -33,28 +33,33 @@ struct ColimaProfile {
 }
 
 #[command]
-async fn start_colima(window: Window, debug: bool) -> Result<(), String> {
-    stream_command_output(window, "colima start", debug).await
+async fn start_colima(window: Window, profile: String, debug: bool) -> Result<(), String> {
+    let command = format!("colima start {}", profile);
+    stream_command_output(window, &command, debug).await
 }
 
 #[command]
-async fn stop_colima(window: Window, debug: bool) -> Result<(), String> {
-    stream_command_output(window, "colima stop", debug).await
+async fn stop_colima(window: Window, profile: String, debug: bool) -> Result<(), String> {
+    let command = format!("colima stop {}", profile);
+    stream_command_output(window, &command, debug).await
 }
 
 #[command]
-async fn restart_colima(window: Window, debug: bool) -> Result<(), String> {
-    stream_command_output(window, "colima restart", debug).await
+async fn restart_colima(window: Window, profile: String, debug: bool) -> Result<(), String> {
+    let command = format!("colima restart {}", profile);
+    stream_command_output(window, &command, debug).await
 }
 
 #[command]
-async fn status_colima(window: Window, debug: bool) -> Result<(), String> {
-    stream_command_output(window, "colima status", debug).await
+async fn status_colima(window: Window, profile: String, debug: bool) -> Result<(), String> {
+    let command = format!("colima status {}", profile);
+    stream_command_output(window, &command, debug).await
 }
 
 #[command]
-async fn delete_colima(window: Window, debug: bool) -> Result<(), String> {
-    stream_command_output(window, "colima delete", debug).await
+async fn delete_colima(window: Window, profile: String, debug: bool) -> Result<(), String> {
+    let command = format!("colima delete {}", profile);
+    stream_command_output(window, &command, debug).await
 }
 
 #[command]
@@ -113,19 +118,19 @@ async fn list_profiles() -> Result<Vec<ColimaProfile>, String> {
 }
 
 #[command]
-fn open_config() -> Result<String, String> {
+fn open_config(profile: String) -> Result<String, String> {
     let config_path = dirs::home_dir()
         .ok_or("Cannot find home directory")?
-        .join(".colima/default/colima.yaml");
+        .join(format!(".colima/{}/colima.yaml", profile));
 
     if config_path.exists() {
         std::process::Command::new("open")
             .arg(config_path)
             .output()
             .map_err(|e| e.to_string())?;
-        Ok("Opening configuration file".into())
+        Ok(format!("Opening configuration file for {}", profile))
     } else {
-        Err("Configuration file not found".into())
+        Err(format!("Configuration file not found for profile: {}", profile))
     }
 }
 
