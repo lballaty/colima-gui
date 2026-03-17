@@ -57,10 +57,24 @@ function App() {
   }, []);
 
   const handleClick = async (command: string, label?: string) => {
+    if (!selectedProfile) {
+      alert('Please select a profile first');
+      return;
+    }
+
     try {
       setOutput((prevOutput) => [...prevOutput, `$ ${label || command}`]); // Add command to output
       const currentWindow = await getCurrent();
-      await invoke(command, { window: currentWindow, debug });
+
+      // Commands that need profile parameter
+      if (['start_colima', 'stop_colima', 'restart_colima', 'status_colima', 'delete_colima'].includes(command)) {
+        await invoke(command, { window: currentWindow, profile: selectedProfile, debug });
+      } else if (command === 'open_config') {
+        await invoke(command, { profile: selectedProfile });
+      } else {
+        // Commands that don't need profile (list_colima, prune_colima, version_colima)
+        await invoke(command, { window: currentWindow, debug });
+      }
     } catch (error) {
       alert('Error: ' + error);
     }
@@ -149,13 +163,49 @@ function App() {
 
       <Box display="flex" justifyContent="space-between">
         <Box display="flex" flexDirection="column" gap={2}>
-          <Button variant="contained" onClick={() => handleClick('start_colima', 'colima start')}>Start</Button>
-          <Button variant="contained" onClick={() => handleClick('stop_colima', 'colima stop')}>Stop</Button>
-          <Button variant="contained" onClick={() => handleClick('restart_colima', 'colima restart')}>Restart</Button>
-          <Button variant="contained" onClick={() => handleClick('status_colima', 'colima status')}>Check Status</Button>
-          <Button variant="contained" onClick={() => handleClick('open_config', 'open ~/.colima/default/colima.yaml')}>Edit Config</Button>
-          <Button variant="contained" onClick={() => handleClick('delete_colima', 'colima delete')}>Delete</Button>
-          <Button variant="contained" onClick={() => handleClick('list_colima', 'colima list')}>List Instances</Button>
+          <Button
+            variant="contained"
+            onClick={() => handleClick('start_colima', `colima start ${selectedProfile}`)}
+            disabled={!selectedProfile}
+          >
+            Start Selected Profile
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleClick('stop_colima', `colima stop ${selectedProfile}`)}
+            disabled={!selectedProfile}
+          >
+            Stop Selected Profile
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleClick('restart_colima', `colima restart ${selectedProfile}`)}
+            disabled={!selectedProfile}
+          >
+            Restart Selected Profile
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleClick('status_colima', `colima status ${selectedProfile}`)}
+            disabled={!selectedProfile}
+          >
+            Check Status
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleClick('open_config', `open ~/.colima/${selectedProfile}/colima.yaml`)}
+            disabled={!selectedProfile}
+          >
+            Edit Config
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleClick('delete_colima', `colima delete ${selectedProfile}`)}
+            disabled={!selectedProfile}
+          >
+            Delete Selected Profile
+          </Button>
+          <Button variant="contained" onClick={() => handleClick('list_colima', 'colima list')}>List All Instances</Button>
           <Button variant="contained" onClick={() => handleClick('prune_colima', 'colima prune -f')}>Prune Assets</Button>
           <Button variant="contained" onClick={() => handleClick('version_colima', 'colima version')}>Version</Button>
           <FormControlLabel
