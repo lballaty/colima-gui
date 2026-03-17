@@ -5,10 +5,48 @@
 
 use regex::Regex;
 use serde::Serialize;
+use std::path::PathBuf;
 use std::process::Stdio;
 use tauri::{command, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+
+/// Finds the colima binary path, checking common Homebrew locations.
+/// Returns absolute path to colima binary or error if not found.
+///
+/// Checked locations (in order):
+/// 1. /opt/homebrew/bin/colima (Apple Silicon Homebrew)
+/// 2. /usr/local/bin/colima (Intel Homebrew)
+/// 3. Falls back to 'which colima' command
+fn find_colima_binary() -> Result<PathBuf, String> {
+    // Check Apple Silicon Homebrew location
+    let apple_silicon_path = PathBuf::from("/opt/homebrew/bin/colima");
+    if apple_silicon_path.exists() {
+        return Ok(apple_silicon_path);
+    }
+
+    // Check Intel Homebrew location
+    let intel_path = PathBuf::from("/usr/local/bin/colima");
+    if intel_path.exists() {
+        return Ok(intel_path);
+    }
+
+    // Fallback: try to find via which command
+    match std::process::Command::new("which")
+        .arg("colima")
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path_str.is_empty() {
+                return Ok(PathBuf::from(path_str));
+            }
+        }
+        _ => {}
+    }
+
+    Err("colima binary not found. Please install colima via Homebrew: brew install colima".to_string())
+}
 
 /// Represents a Colima VM profile with its configuration and status.
 #[derive(Debug, Clone, Serialize)]
@@ -69,7 +107,7 @@ async fn list_colima(window: Window, debug: bool) -> Result<(), String> {
 
 #[command]
 async fn prune_colima(window: Window, debug: bool) -> Result<(), String> {
-    stream_command_output(window, "colima prune", debug).await
+    stream_command_output(window, "colima prune -f", debug).await
 }
 
 #[command]
@@ -81,7 +119,10 @@ async fn version_colima(window: Window, debug: bool) -> Result<(), String> {
 /// Returns a list of profiles with their current status and configuration.
 #[command]
 async fn list_profiles() -> Result<Vec<ColimaProfile>, String> {
-    let output = tokio::process::Command::new("colima")
+    // Find colima binary with absolute path
+    let colima_path = find_colima_binary()?;
+
+    let output = tokio::process::Command::new(colima_path)
         .arg("list")
         .output()
         .await
@@ -137,9 +178,15 @@ fn open_config(profile: String) -> Result<String, String> {
 async fn stream_command_output(window: Window, command: &str, debug: bool) -> Result<(), String> {
     println!("Running command: {} with debug: {}", command, debug);
 
+    // Find colima binary and replace "colima" in command with absolute path
+    let colima_path = find_colima_binary()?;
+    let command_with_path = command.replace("colima", colima_path.to_str().unwrap());
+
+    println!("Resolved command: {}", command_with_path);
+
     let mut cmd = Command::new("sh")
         .arg("-c")
-        .arg(command)
+        .arg(&command_with_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
