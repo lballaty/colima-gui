@@ -11,41 +11,69 @@ use tauri::{command, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-/// Finds the colima binary path, checking common Homebrew locations.
+/// Finds the colima binary path, checking common installation locations.
 /// Returns absolute path to colima binary or error if not found.
 ///
 /// Checked locations (in order):
-/// 1. /opt/homebrew/bin/colima (Apple Silicon Homebrew)
-/// 2. /usr/local/bin/colima (Intel Homebrew)
-/// 3. Falls back to 'which colima' command
+/// 1. COLIMA_PATH environment variable (allows user override)
+/// 2. /opt/homebrew/bin/colima (Apple Silicon Homebrew)
+/// 3. /usr/local/bin/colima (Intel Homebrew)
+/// 4. ~/bin/colima (user local install)
+/// 5. ~/.local/bin/colima (user local install)
+/// 6. /usr/bin/colima (system install)
+/// 7. /bin/colima (system install)
 fn find_colima_binary() -> Result<PathBuf, String> {
-    // Check Apple Silicon Homebrew location
-    let apple_silicon_path = PathBuf::from("/opt/homebrew/bin/colima");
-    if apple_silicon_path.exists() {
-        return Ok(apple_silicon_path);
+    // Check COLIMA_PATH environment variable first (user override)
+    if let Ok(env_path) = std::env::var("COLIMA_PATH") {
+        let path = PathBuf::from(&env_path);
+        if path.exists() {
+            return Ok(path);
+        }
     }
 
-    // Check Intel Homebrew location
-    let intel_path = PathBuf::from("/usr/local/bin/colima");
-    if intel_path.exists() {
-        return Ok(intel_path);
+    // Common installation paths to check
+    let paths_to_check = vec![
+        "/opt/homebrew/bin/colima",    // Apple Silicon Homebrew
+        "/usr/local/bin/colima",        // Intel Homebrew
+        "/usr/bin/colima",              // System install
+        "/bin/colima",                  // System install
+    ];
+
+    // Check standard paths
+    for path_str in paths_to_check {
+        let path = PathBuf::from(path_str);
+        if path.exists() {
+            return Ok(path);
+        }
     }
 
-    // Fallback: try to find via which command
-    match std::process::Command::new("which")
-        .arg("colima")
-        .output()
-    {
-        Ok(output) if output.status.success() => {
-            let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !path_str.is_empty() {
-                return Ok(PathBuf::from(path_str));
+    // Check user home directory paths
+    if let Some(home_dir) = dirs::home_dir() {
+        let user_paths = vec![
+            home_dir.join("bin/colima"),
+            home_dir.join(".local/bin/colima"),
+        ];
+
+        for path in user_paths {
+            if path.exists() {
+                return Ok(path);
             }
         }
-        _ => {}
     }
 
-    Err("colima binary not found. Please install colima via Homebrew: brew install colima".to_string())
+    Err(format!(
+        "colima binary not found in common locations.\n\
+         Checked:\n\
+         - COLIMA_PATH environment variable\n\
+         - /opt/homebrew/bin/colima\n\
+         - /usr/local/bin/colima\n\
+         - /usr/bin/colima\n\
+         - ~/bin/colima\n\
+         - ~/.local/bin/colima\n\
+         \n\
+         Please install colima via Homebrew: brew install colima\n\
+         Or set COLIMA_PATH environment variable to the binary location."
+    ))
 }
 
 /// Represents a Colima VM profile with its configuration and status.
